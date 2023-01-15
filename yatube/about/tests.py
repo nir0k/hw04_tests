@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 
 class StaticURLTests(TestCase):
     def setUp(self):
-        self.guest_client = Client()       
+        self.guest_client = Client()
         self.urls_templates = {
             '/about/author/': 'about/author.html',
             '/about/tech/': 'about/tech.html',
