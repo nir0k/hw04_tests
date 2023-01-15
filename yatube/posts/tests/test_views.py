@@ -179,5 +179,5 @@ class PostPagesTests(TestCase):
         }
         for reverse_value, expected in paginator_dict.items():
             with self.subTest(reverse_value=reverse_value):
-                response = self.client.get(reverse_value)                
+                response = self.client.get(reverse_value)
                 self.assertEqual(len(response.context['page_obj']), expected)
