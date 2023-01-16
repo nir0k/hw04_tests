@@ -9,7 +9,7 @@ from .utils import pagi
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
     template = 'posts/group_list.html'
-    post_list = Post.objects.filter(group=group).order_by('-pub_date')
+    post_list = group.posts.all()
     context = {
         'title': group.title,
         'page_obj': pagi(request, post_list, POSTS_PER_PAGE),
@@ -25,7 +25,7 @@ def group_posts(request, slug):
 def index(request):
     template = 'posts/index.html'
     title = 'Последние обновления на сайте'
-    post_list = Post.objects.all().order_by('-pub_date')
+    post_list = Post.objects.all()
     context = {
         'title': title,
         'page_obj': pagi(request, post_list, POSTS_PER_PAGE),
@@ -39,7 +39,7 @@ def index(request):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    post_list = author.author_posts.all().order_by('-pub_date')
+    post_list = author.author_posts.all()
     title = 'Профайл пользователя'
     context = {
         'title': title,

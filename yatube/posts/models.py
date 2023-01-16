@@ -14,6 +14,8 @@ class Group(models.Model):
 
 
 class Post(models.Model):
+    class Meta:
+        ordering = ('-pub_date',)
     text = models.TextField(
         'Текст поста',
         help_text='Введите текст поста'
