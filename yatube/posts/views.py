@@ -70,7 +70,9 @@ def post_create(request):
             template,
             {'form': form},
         )
-    form = PostForm(request.POST)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,)
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -89,8 +91,14 @@ def post_edit(request, post_id):
     template = 'posts/create_post.html'
     is_edit = True
     post = get_object_or_404(Post, id=post_id)
+    if post.author != request.user:
+        return redirect('posts:post_detail', post_id=post_id)
     groups = Group.objects.all()
-    form = PostForm(instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     context = {
         'form': form,
         'is_edit': is_edit,

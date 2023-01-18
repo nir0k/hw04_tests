@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+# from sorl.thumbnail import ImageField
+
 
 User = get_user_model()
 
@@ -14,8 +16,6 @@ class Group(models.Model):
 
 
 class Post(models.Model):
-    class Meta:
-        ordering = ('-pub_date',)
     text = models.TextField(
         'Текст поста',
         help_text='Введите текст поста'
@@ -40,6 +40,18 @@ class Post(models.Model):
         verbose_name='Группа',
         help_text='Группа, к которой будет относиться пост'
     )
+    image = models.ImageField(
+        'Картинка',
+        upload_to='posts/',
+        blank=True,
+        null=True,
+        help_text='Загрузите картинку'
+    )
+
+    class Meta:
+        ordering = ('-pub_date',)
+        verbose_name = 'Пост'
+        verbose_name_plural = 'Посты'
 
     def __str__(self):
         return str(self.text[:15])
