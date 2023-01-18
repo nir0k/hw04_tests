@@ -111,7 +111,11 @@ def post_edit(request, post_id):
             template,
             context,
         )
-    form = PostForm(request.POST, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user

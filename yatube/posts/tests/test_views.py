@@ -1,13 +1,20 @@
+import shutil
+import tempfile
+
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from ..constants import POSTS_PER_PAGE
 
 from posts.models import Post, Group
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -17,11 +24,30 @@ class PostPagesTests(TestCase):
             title='Test group 01',
             slug='test-group-01',
         )
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00'
+            b'\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
+            b'\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             text='Тестовый пост для тестирования',
             author=cls.author,
             group=cls.group,
+            image=cls.uploaded,
+            
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.guest_client = Client()
@@ -63,6 +89,7 @@ class PostPagesTests(TestCase):
             first_object.text: self.post.text,
             first_object.group: self.post.group,
             first_object.author: self.post.author,
+            first_object.image: self.post.image,
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):
@@ -80,6 +107,7 @@ class PostPagesTests(TestCase):
         post_fields = {
             first_object.text: self.post.text,
             first_object.author: self.post.author,
+            first_object.image: self.post.image,
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):
@@ -97,6 +125,7 @@ class PostPagesTests(TestCase):
         post_fields = {
             first_object.text: self.post.text,
             first_object.author: self.post.author,
+            first_object.image: self.post.image,
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):
@@ -110,8 +139,14 @@ class PostPagesTests(TestCase):
                 kwargs={'post_id': self.post.pk}
             )
         )
-        self.assertEqual(response.context['post'].text, self.post.text)
-        self.assertEqual(response.context['posts_count'], 1)
+        post_fields = {
+            response.context['post'].text: self.post.text,
+            response.context['post'].image: self.post.image,
+            response.context["posts_count"]: 1,
+        }
+        for field, expected in post_fields.items():
+            with self.subTest(field=field):
+                self.assertEqual(field, expected)
 
     def test_post_edit_page_show_correct_context(self):
         """Шаблон post_edit сформирован с правильным контекстом."""
@@ -121,28 +156,30 @@ class PostPagesTests(TestCase):
                 kwargs={'post_id': self.post.pk}
             )
         )
-        self.assertEqual(response.context['is_edit'], True)
-        self.assertEqual(response.context['post_id'], self.post.pk)
-        self.assertEqual(
-            response.context['form']['group'].initial,
-            self.post.group.pk)
-        self.assertEqual(
-            response.context['form']['text'].initial,
-            self.post.text)
+        post_fields = {
+            response.context['is_edit']: True,
+            response.context['post_id']: self.post.pk,
+            response.context['form']['group'].initial: self.post.group.pk,
+            response.context['form']['text'].initial: self.post.text,
+            response.context['form']['image'].initial: self.post.image,
+        }
+        for field, expected in post_fields.items():
+            with self.subTest(field=field):
+                self.assertEqual(field, expected)
 
     def test_post_create_page_show_correct_context(self):
         """Шаблон post_create сформирован с правильным контекстом."""
         response = self.authorized_client.get(
             reverse('posts:post_create')
         )
-        self.assertEqual(
-            response.context['form']['group'].initial,
-            None
-        )
-        self.assertEqual(
-            response.context['form']['text'].initial,
-            None
-        )
+        post_fields = {
+            response.context['form']['group'].initial: None,
+            response.context['form']['text'].initial: None,
+            response.context['form']['image'].initial: None,
+        }
+        for field, expected in post_fields.items():
+            with self.subTest(field=field):
+                self.assertEqual(field, expected)
 
     def test_paginator(self):
         """Тестирование работы пагинатора"""
