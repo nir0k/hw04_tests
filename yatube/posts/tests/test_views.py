@@ -40,8 +40,7 @@ class PostPagesTests(TestCase):
             text='Тестовый пост для тестирования',
             author=cls.author,
             group=cls.group,
-            image=cls.uploaded,
-            
+            image=cls.uploaded,   
         )
 
     @classmethod
