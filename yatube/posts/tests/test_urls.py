@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from ..models import Post, Group
+from django.core.cache import cache
 
 User = get_user_model()
 
@@ -40,6 +41,9 @@ class PostURLTest(TestCase):
             f'/posts/{self.post.pk}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
         }
+
+    def tearDown(self):
+        cache.clear()
 
     def test_home_url_exists_at_desired_location(self):
         """Тест общедоступных страниц"""

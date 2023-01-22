@@ -4,6 +4,7 @@ from .constants import POSTS_PER_PAGE
 from .forms import PostForm, CommentForm
 from .models import Group, Post, User
 from .utils import pagi
+from django.views.decorators.cache import cache_page
 
 
 def group_posts(request, slug):
@@ -22,6 +23,7 @@ def group_posts(request, slug):
     )
 
 
+@cache_page(20)
 def index(request):
     template = 'posts/index.html'
     title = 'Последние обновления на сайте'
@@ -98,15 +100,14 @@ def post_create(request):
 @login_required
 def post_edit(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    groups = Group.objects.all()
     if post.author != request.user:
         return redirect('posts:post_detail', post_id=post_id)
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None,
-        instance=post,
-    )
     if request.method == 'POST':
+        form = PostForm(
+            request.POST or None,
+            files=request.FILES or None,
+            instance=post,
+        )
         if form.is_valid():
             post = form.save(commit=False)
             post.author = request.user
@@ -115,11 +116,12 @@ def post_edit(request, post_id):
             post.image = form.cleaned_data['image']
             post.save()
             return redirect('posts:post_detail', post_id=post_id)
+
+    form = PostForm(instance=post,)
     context = {
         'post': post,
         'form': form,
         'is_edit': True,
-        'groups': groups,
     }
     return render(request, 'posts/create_post.html', context)
 

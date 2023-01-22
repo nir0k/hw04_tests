@@ -6,6 +6,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 from ..constants import POSTS_PER_PAGE
 
 from posts.models import Post, Group, Comment
@@ -58,8 +59,12 @@ class PostPagesTests(TestCase):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
 
+    def tearDown(self):
+        cache.clear()
+
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
+        cache.clear()
         templates_page_names = {
             reverse('posts:index'): 'posts/index.html',
             reverse(
@@ -163,11 +168,10 @@ class PostPagesTests(TestCase):
         )
         post_fields = {
             response.context['is_edit']: True,
-            response.context['post_id']: self.post.pk,
+            response.context['post']: self.post,
             response.context['form']['group'].initial: self.post.group.pk,
             response.context['form']['text'].initial: self.post.text,
             response.context['form']['image'].initial: self.post.image,
-            
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):
