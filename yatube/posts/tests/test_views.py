@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from ..constants import POSTS_PER_PAGE
 
-from posts.models import Post, Group
+from posts.models import Post, Group, Comment
 
 User = get_user_model()
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -40,7 +40,12 @@ class PostPagesTests(TestCase):
             text='Тестовый пост для тестирования',
             author=cls.author,
             group=cls.group,
-            image=cls.uploaded,   
+            image=cls.uploaded,
+        )
+        cls.comment = Comment.objects.create(
+            text='Тестовый комент для тестирования',
+            author=cls.author,
+            post=cls.post,
         )
 
     @classmethod
@@ -142,6 +147,7 @@ class PostPagesTests(TestCase):
             response.context['post'].text: self.post.text,
             response.context['post'].image: self.post.image,
             response.context["posts_count"]: 1,
+            response.context['comments'][0]: self.post.comments.all()[0],
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):
@@ -161,6 +167,7 @@ class PostPagesTests(TestCase):
             response.context['form']['group'].initial: self.post.group.pk,
             response.context['form']['text'].initial: self.post.text,
             response.context['form']['image'].initial: self.post.image,
+            
         }
         for field, expected in post_fields.items():
             with self.subTest(field=field):

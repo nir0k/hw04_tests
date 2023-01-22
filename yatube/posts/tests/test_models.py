@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from ..models import Group, Post
+from ..models import Group, Post, Comment
 
 User = get_user_model()
 
@@ -20,18 +20,24 @@ class PostModelTest(TestCase):
             author=cls.user,
             text='Тестовый пост',
         )
+        cls.comment = Comment.objects.create(
+            author=cls.user,
+            text='test comment ololo',
+            post=cls.post,
+        )
 
     def test_models_have_correct_object_names(self):
         """Проверяем, что у моделей корректно работает __str__."""
-        group = PostModelTest.group
-        expected_object_title = group.title
-        self.assertEqual(expected_object_title, str(group))
+        fields = {
+            PostModelTest.group: PostModelTest.group.title,
+            PostModelTest.post: PostModelTest.post.text[:15],
+            PostModelTest.comment: PostModelTest.comment.text,
+        }
+        for expected, value in fields.items():
+            with self.subTest(expected=expected):
+                self.assertEqual(value, str(expected))
 
-        post = PostModelTest.post
-        expected_object_text = post.text[:15]
-        self.assertEqual(expected_object_text, str(post))
-
-    def test_verbose_name(self):
+    def test_model_post_verbose_name(self):
         """verbose_name в полях совпадает с ожидаемым."""
         post = PostModelTest.post
         field_verboses = {
@@ -45,7 +51,21 @@ class PostModelTest(TestCase):
                 self.assertEqual(
                     post._meta.get_field(value).verbose_name, expected)
 
-    def test_help_text(self):
+    def test_model_comment_verbose_name(self):
+        """verbose_name в полях совпадает с ожидаемым."""
+        comment = PostModelTest.comment
+        field_verboses = {
+            'post': 'Пост',
+            'author': 'Автор',
+            'text': 'Текст комментария',
+            'created': 'Дата публикации',
+        }
+        for value, expected in field_verboses.items():
+            with self.subTest(value=value):
+                self.assertEqual(
+                    comment._meta.get_field(value).verbose_name, expected)
+
+    def test_model_post_help_text(self):
         """help_text в полях совпадает с ожидаемым."""
         post = PostModelTest.post
         field_help_texts = {
@@ -56,3 +76,15 @@ class PostModelTest(TestCase):
             with self.subTest(value=value):
                 self.assertEqual(
                     post._meta.get_field(value).help_text, expected)
+
+    def test_model_comment_help_text(self):
+        """help_text в полях совпадает с ожидаемым."""
+        comment = PostModelTest.comment
+        field_help_texts = {
+            'post': 'Пост, к которому относиться комментарий',
+            'text': 'Введите текст комментария',
+        }
+        for value, expected in field_help_texts.items():
+            with self.subTest(value=value):
+                self.assertEqual(
+                    comment._meta.get_field(value).help_text, expected)

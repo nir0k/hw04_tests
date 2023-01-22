@@ -32,7 +32,7 @@ class PostURLTest(TestCase):
             f'/posts/{self.post.pk}/': 200,
             '/unexisting_page/': 404,
         }
-        self.guest_page_templates = {
+        self.auth_page_templates = {
             '/': 'posts/index.html',
             f'/group/{self.group.slug}/': 'posts/group_list.html',
             f'/profile/{self.post.author}/': 'posts/profile.html',
@@ -56,7 +56,7 @@ class PostURLTest(TestCase):
         response = self.guest_client.get(url)
         self.assertRedirects(response, '/auth/login/?next=/create/')
 
-    def test_create_url(self):
+    def test_edit_post_url(self):
         """Страница /posts/<post_id>/edit/ доступна только автору"""
         url = f'/posts/{self.post.pk}/edit/'
         response = self.authorized_client.get(url)
@@ -66,7 +66,19 @@ class PostURLTest(TestCase):
 
     def test_urls_used_templates(self):
         """URL-адрес использует соответствующий шаблон."""
-        for url, template in self.guest_page_templates.items():
+        for url, template in self.auth_page_templates.items():
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
                 self.assertTemplateUsed(response, template)
+
+    def test_comment_url(self):
+        """Страница posts/<int:post_id>/comment/
+        доступна только авторизованным пользователям"""
+        url = f'/posts/{self.post.pk}/comment/'
+        response = self.authorized_client.get(url)
+        self.assertEqual(response.status_code, 302)
+        response = self.guest_client.get(url)
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/posts/{self.post.pk}/comment/'
+        )

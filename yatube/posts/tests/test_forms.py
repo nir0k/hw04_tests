@@ -1,9 +1,10 @@
 import tempfile
 import shutil
+import base64
 
 from django.contrib.auth import get_user_model
-from posts.forms import PostForm
-from posts.models import Post, Group
+from posts.forms import PostForm, CommentForm
+from posts.models import Post, Group, Comment
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.conf import settings
@@ -25,25 +26,17 @@ class PostCreateFormTests(TestCase):
             slug='test-group-01',
         )
         cls.post_text = 'Тестовый пост'
+        cls.form = PostForm()
         cls.post_to_edit = Post.objects.create(
             text=cls.post_text,
             author=cls.author,
             group=cls.group,
         )
-        cls.form = PostForm()
-        cls.small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x01\x00'
-            b'\x01\x00\x00\x00\x00\x21\xf9\x04'
-            b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
-            b'\x00\x00\x01\x00\x01\x00\x00\x02'
-            b'\x02\x4c\x01\x00\x3b'
-        )
-        cls.uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=cls.small_gif,
-            content_type='image/gif'
-        )
-    
+        cls.small_bmp = base64.b64decode(
+            'Qk0eAAAAAAAAABoAAAAMAAAAAQABAAEAGAAAAP8A')
+        cls.comment_form = CommentForm()
+        cls.comment_text = 'Тестовый комментарий'
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -52,6 +45,11 @@ class PostCreateFormTests(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
+        self.uploaded = SimpleUploadedFile(
+            name='small.bmp',
+            content=self.small_bmp,
+            content_type='image/bmp'
+        )
 
     def test_create_post(self):
         """Валидная форма создает запись в Post."""
@@ -85,10 +83,15 @@ class PostCreateFormTests(TestCase):
 
     def test_edit_post(self):
         """Валидная форма редактирования записи в Post."""
+        uploaded = SimpleUploadedFile(
+            name='small1.bmp',
+            content=self.small_bmp,
+            content_type='image/bmp'
+        )
         form_data = {
             'text': f'{self.post_text}01',
             'group': self.group.pk,
-            'image': self.uploaded,
+            'image': uploaded,
         }
         response = self.authorized_client.post(
             reverse(
@@ -110,6 +113,36 @@ class PostCreateFormTests(TestCase):
                 author=self.author,
                 text=f'{self.post_text}01',
                 group=self.group.pk,
-                image=f'posts/{self.uploaded.name}',
+                image=f'posts/{uploaded.name}'
+            ).exists()
+        )
+
+    def test_create_comment(self):
+        """Валидная форма создает новый комментарий."""
+        comments_count = Comment.objects.count()
+        form_data = {
+            'text': self.comment_text,
+        }
+        response = self.authorized_client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': self.post_to_edit.pk}
+            ),
+            data=form_data,
+            follow=True,
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': self.post_to_edit.pk}
+            )
+        )
+        self.assertEqual(Comment.objects.count(), comments_count + 1)
+        self.assertTrue(
+            Comment.objects.filter(
+                author=self.author,
+                text=self.comment_text,
+                post=self.post_to_edit,
             ).exists()
         )

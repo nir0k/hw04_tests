@@ -1,7 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from .constants import POSTS_PER_PAGE
-from .forms import PostForm
+from .forms import PostForm, CommentForm
 from .models import Group, Post, User
 from .utils import pagi
 
@@ -51,13 +51,22 @@ def profile(request, username):
 
 
 def post_detail(request, post_id):
+    template = 'posts/post_detail.html'
     post = get_object_or_404(Post, id=post_id)
     posts_count = Post.objects.filter(author=post.author).count()
+    comments = post.comments.all()
+    # new_comment = None
+    if request.method == 'POST':
+        form = post_create(data=request.POST)
+    else:
+        form = CommentForm()
     context = {
         'post': post,
         'posts_count': posts_count,
+        'comments': comments,
+        'form': form,
     }
-    return render(request, 'posts/post_detail.html', context)
+    return render(request, template, context)
 
 
 @login_required
@@ -72,7 +81,7 @@ def post_create(request):
         )
     form = PostForm(
         request.POST or None,
-        files=request.FILES or None,)
+        files=request.FILES or None)
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -88,43 +97,41 @@ def post_create(request):
 
 @login_required
 def post_edit(request, post_id):
-    template = 'posts/create_post.html'
-    is_edit = True
     post = get_object_or_404(Post, id=post_id)
+    groups = Group.objects.all()
     if post.author != request.user:
         return redirect('posts:post_detail', post_id=post_id)
-    groups = Group.objects.all()
     form = PostForm(
         request.POST or None,
         files=request.FILES or None,
-        instance=post
+        instance=post,
     )
+    if request.method == 'POST':
+        if form.is_valid():
+            post = form.save(commit=False)
+            post.author = request.user
+            post.text = form.cleaned_data['text']
+            post.group = form.cleaned_data['group']
+            post.image = form.cleaned_data['image']
+            post.save()
+            return redirect('posts:post_detail', post_id=post_id)
     context = {
+        'post': post,
         'form': form,
-        'is_edit': is_edit,
-        'post_id': post_id,
+        'is_edit': True,
         'groups': groups,
     }
-    if request.method != 'POST':
-        return render(
-            request,
-            template,
-            context,
-        )
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None,
-        instance=post
-    )
+    return render(request, 'posts/create_post.html', context)
+
+
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    form = CommentForm(request.POST or None)
     if form.is_valid():
-        post = form.save(commit=False)
-        post.author = request.user
-        post.text = form.cleaned_data['text']
-        post.group = form.cleaned_data['group']
-        post.save()
-        return redirect('posts:post_detail', post_id)
-    return render(
-        request,
-        template,
-        context,
-    )
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.text = form.cleaned_data['text']
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)
