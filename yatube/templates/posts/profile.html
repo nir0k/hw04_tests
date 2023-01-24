@@ -7,9 +7,29 @@
 {% endblock %}
 </title>
 {% block content %}
-<div class="container py-5">     
+{% comment %} <div class="container py-5">      {% endcomment %}
+<div class="mb-5">   
   <h1>{{ title }} {{ author.get_full_name }}</h1>
   <h3>Всего постов: {{ posts_count }} </h3>
+  {%if user.is_authenticated %}
+    {% if curent_user != author %}
+      {% if following %}
+        <a
+          class="btn btn-lg btn-light"
+          href="{% url 'posts:profile_unfollow' author.username %}" role="button"
+        >
+          Отписаться
+        </a>
+      {% else %}
+        <a
+          class="btn btn-lg btn-primary"
+          href="{% url 'posts:profile_follow' author.username %}" role="button"
+        >
+          Подписаться
+        </a>
+      {% endif %}
+    {%endif%}
+  {%endif%}
   <article>
     {% for post in page_obj %}
       <ul>

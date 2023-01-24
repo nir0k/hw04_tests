@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 from core.models import CreatedModel
-
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 User = get_user_model()
 
@@ -75,15 +76,32 @@ class Comment(CreatedModel):
         'Текст комментария',
         help_text='Введите текст комментария'
     )
-    # pub_date = models.DateTimeField(
-    #     'Дата публикации',
-    #     auto_now_add=True
-    # )
 
     class Meta:
-        # ordering = ('-pub_date',)
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
 
     def __str__(self) -> str:
         return str(self.text)
+
+
+class Follow(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+        null=True,
+        verbose_name='Подписчик',
+    )
+    following = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='followers',
+        verbose_name='followers'
+    )
+
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    if created:
+        Follow(user=instance).save()

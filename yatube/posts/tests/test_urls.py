@@ -86,3 +86,15 @@ class PostURLTest(TestCase):
             response,
             f'/auth/login/?next=/posts/{self.post.pk}/comment/'
         )
+
+    def test_follow_page(self):
+        """Страница profile/<str:username>/follow/
+        доступна только авторизованным пользователям"""
+        url = f'/profile/{self.author.username}/follow/'
+        response = self.authorized_client.get(url)
+        self.assertEqual(response.status_code, 302)
+        response = self.guest_client.get(url)
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next={url}'
+        )

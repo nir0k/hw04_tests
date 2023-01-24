@@ -41,13 +41,32 @@ def index(request):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
+    if not User.objects.filter(pk=request.user.id).exists():
+        post_list = author.author_posts.all()
+        title = 'Профайл пользователя'
+        context = {
+            'title': title,
+            'page_obj': pagi(request, post_list, POSTS_PER_PAGE),
+            'author': author,
+            'posts_count': post_list.count(),
+        }
+        return render(request, 'posts/profile.html', context)
+    curent_user = get_object_or_404(User, username=request.user.username)
+    follower = False
+    following = curent_user.follower.following
+    if following.filter(pk=author.pk).exists():
+        follower = True
     post_list = author.author_posts.all()
     title = 'Профайл пользователя'
+    if request.method == 'POST':
+        profile_follow(data=request.POST)
     context = {
         'title': title,
         'page_obj': pagi(request, post_list, POSTS_PER_PAGE),
         'author': author,
+        'curent_user': curent_user,
         'posts_count': post_list.count(),
+        'following': follower,
     }
     return render(request, 'posts/profile.html', context)
 
@@ -57,7 +76,6 @@ def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     posts_count = Post.objects.filter(author=post.author).count()
     comments = post.comments.all()
-    # new_comment = None
     if request.method == 'POST':
         form = post_create(data=request.POST)
     else:
@@ -137,3 +155,41 @@ def add_comment(request, post_id):
         comment.text = form.cleaned_data['text']
         comment.save()
     return redirect('posts:post_detail', post_id=post_id)
+
+
+@login_required
+def follow_index(request):
+    template = 'posts/follow.html'
+    title = 'Последние обновления в подписках'
+    user = get_object_or_404(User, username=request.user)
+    following = user.follower.following.all()
+    post_list = Post.objects.filter(author__in=following)
+    context = {
+        'title': title,
+        'page_obj': pagi(request, post_list, POSTS_PER_PAGE),
+    }
+    return render(request, template, context)
+
+
+@login_required
+def profile_follow(request, username):
+    template = 'posts:profile'
+    author = get_object_or_404(User, username=username)
+    curent_user = get_object_or_404(User, username=request.user.username)
+    if author != curent_user:
+        following = curent_user.follower.following
+        if not following.filter(pk=author.pk).exists():
+            following.add(author)
+    return redirect(template, author)
+
+
+@login_required
+def profile_unfollow(request, username):
+    template = 'posts:profile'
+    author = get_object_or_404(User, username=username)
+    curent_user = get_object_or_404(User, username=request.user.username)
+    if author != curent_user.username:
+        following = curent_user.follower.following
+        if following.filter(pk=author.pk).exists():
+            following.remove(author)
+    return redirect(template, author)

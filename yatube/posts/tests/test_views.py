@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 from ..constants import POSTS_PER_PAGE
 
-from posts.models import Post, Group, Comment
+from posts.models import Post, Group, Comment, Follow
 
 User = get_user_model()
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -37,17 +37,6 @@ class PostPagesTests(TestCase):
             content=small_gif,
             content_type='image/gif'
         )
-        cls.post = Post.objects.create(
-            text='Тестовый пост для тестирования',
-            author=cls.author,
-            group=cls.group,
-            image=cls.uploaded,
-        )
-        cls.comment = Comment.objects.create(
-            text='Тестовый комент для тестирования',
-            author=cls.author,
-            post=cls.post,
-        )
 
     @classmethod
     def tearDownClass(cls):
@@ -58,6 +47,17 @@ class PostPagesTests(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.author)
+        self.post = Post.objects.create(
+            text='Тестовый пост для тестирования',
+            author=self.author,
+            group=self.group,
+            image=self.uploaded,
+        )
+        self.comment = Comment.objects.create(
+            text='Тестовый комент для тестирования',
+            author=self.author,
+            post=self.post,
+        )
 
     def tearDown(self):
         cache.clear()
@@ -228,3 +228,66 @@ class PostPagesTests(TestCase):
             with self.subTest(reverse_value=reverse_value):
                 response = self.client.get(reverse_value)
                 self.assertEqual(len(response.context['page_obj']), expected)
+
+    def test_follow_author(self):
+        """Тестирование возможности подписки и одписки от автора"""
+        author1 = User.objects.create_user(username='author1')
+        user = User.objects.create_user(username='user')
+        authorized_client = Client()
+        authorized_client.force_login(user)
+        follow_count = Follow.objects.filter(
+            user=user,
+            following=author1
+        ).count()
+        authorized_client.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': author1.username}
+            )
+        )
+        self.assertEqual(
+            Follow.objects.filter(
+                user=user,
+                following=author1
+            ).count(),
+            follow_count + 1
+        )
+        authorized_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': author1.username}
+            )
+        )
+        self.assertEqual(
+            Follow.objects.filter(
+                user=user,
+                following=author1
+            ).count(),
+            follow_count
+        )
+
+    def test_view_following_posts(self):
+        """Тестирование отображения постов на авторов
+        на которых подписан пользователь"""
+        author1 = User.objects.create_user(username='author1')
+        author2 = User.objects.create_user(username='author2')
+        user1 = User.objects.create_user(username='user1')
+        user2 = User.objects.create_user(username='user2')
+        authorized_client1 = Client()
+        authorized_client2 = Client()
+        authorized_client1.force_login(user1)
+        authorized_client2.force_login(user2)
+        Post.objects.create(text='text', author=author1,)
+        Post.objects.create(text='text', author=author2,)
+        authorized_client1.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': author2.username}
+            )
+        )
+        response1 = authorized_client1.get(reverse('posts:follow_index'))
+        self.assertEqual(len(response1.context['page_obj']), 1)
+        first_object = response1.context['page_obj'][0]
+        self.assertEqual(first_object.author, author2)
+        response2 = authorized_client2.get(reverse('posts:follow_index'))
+        self.assertEqual(len(response2.context['page_obj']), 0)
